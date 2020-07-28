@@ -31,12 +31,17 @@ class DriveEnv(gym.Env):
 		# observation space: field position, down, to_go, turnover, touchdown
 		self.observation_space = spaces.Tuple(
 			(
+				spaces.Discrete(),
+				spaces.Discrete(),
 				spaces.Discrete(1800), # seconds left in half
 				spaces.Discrete(100), # yards to endzone
 				spaces.Discrete(99), # yards to first down
 				spaces.Discrete(4) # down
 			)
-		) # field_goal
+		)
+
+		# randomly select offense team
+		self.offense_team_id = np.random.randint(0, 32)
 
 		# randomly select starting drive time
 		self.half_seconds = np.random.randint(0, 1800)
@@ -77,17 +82,19 @@ class DriveEnv(gym.Env):
 
 
 		if play_type == "run":
-			yards_gained = predict_run_yards(shotgun, no_huddle, qb_dropback, run_location, run_gap, previous_state)
-			turnover = predict_run_turnover(shotgun, no_huddle, qb_dropback, run_location, run_gap, previous_state)
-			penalty = predict_penalty(shotgun, no_huddle, qb_dropback, run_location, run_gap, previous_state)
-			seconds_used = predict_seconds(shotgun, no_huddle, qb_dropback, run_location, run_gap, previous_state)
+			yards_gained = predict_run_yards(self.rb_id, self.def_id, shotgun, no_huddle, qb_dropback, run_location, run_gap)
+			turnover = predict_run_turnover(self.rb_id, self.def_id, shotgun, no_huddle, qb_dropback, run_location, run_gap)
+			penalty = predict_penalty(self.rb_id, self.def_id, shotgun, no_huddle, qb_dropback, run_location, run_gap)
+			seconds_used = predict_seconds(self.rb_id, self.def_id, shotgun, no_huddle, qb_dropback, run_location, run_gap)
 		elif play_type == "pass"
-			yards_gained = predict_run_yards(shotgun, no_huddle, qb_dropback, pass_location, pass_length, previous_state)
-			turnover = predict_run_turnover(shotgun, no_huddle, qb_dropback, pass_location, pass_length, previous_state)
-			penalty = predict_penalty(shotgun, no_huddle, qb_dropback, run_location, run_gap, previous_state)
-			seconds_used = predict_seconds(shotgun, no_huddle, qb_dropback, pass_location, pass_length, previous_state)
+			# not handling scrambles, don't know what passing route would have been
+			yards_gained = predict_pass_yards(self.qb_id, self.wr_id, self.def_id, shotgun, no_huddle, qb_dropback, pass_location, pass_length)
+			turnover = predict_run_turnover(self.qb_id, self.wr_id, self.def_id, shotgun, no_huddle, qb_dropback, pass_location, pass_length)
+			penalty = predict_penalty(self.qb_id, self.wr_id, self.def_id, shotgun, no_huddle, qb_dropback, run_location, run_gap)
+			seconds_used = predict_seconds(self.qb_id, self.wr_id, self.def_id, shotgun, no_huddle, qb_dropback, pass_location, pass_length)
 		elif play_type == "field goal":
-			fg_success = predict_fg_success(self.yards_to_endzone)
+			fg_success = predict_fg_success(self.k_id, self.def_id, self.yards_to_endzone)
+		# punt
 		else:
 			reward = 0
 			done = True
